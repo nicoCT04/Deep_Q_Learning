@@ -28,3 +28,6 @@ monitor*.csv
 # Modelos: se versiona solo el modelo final (models/*.zip); no los intermedios
 models/checkpoints/
 models/*best*/
+
+# Respaldo local del entrenamiento (equivale a Drive en Colab)
+artefactos_entrenamiento/
