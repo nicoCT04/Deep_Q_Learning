@@ -1,0 +1,30 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Informe (lo sube Nicolás manualmente, ver reglas del curso)
+reports/*.docx
+reports/*.pdf
+!Proyecto 2 Deep Q Learning-1.pdf
+
+# Artefactos pesados de entrenamiento (viven en Google Drive, no en git)
+*.pkl
+replay_buffer*
+checkpoints/
+runs/
+tb_logs/
+logs/
+monitor*.csv
+
+# Modelos: se versiona solo el modelo final (models/*.zip); no los intermedios
+models/checkpoints/
+models/*best*/
