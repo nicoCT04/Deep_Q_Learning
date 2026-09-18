@@ -11,7 +11,21 @@ metodología, iteraciones de entrenamiento, evaluación y video del agente.
 
 > El entrenamiento se realiza en **Google Colab (GPU)** con checkpoints
 > periódicos a Google Drive como respaldo. El código local sirve para prototipar,
-> analizar el entorno y evaluar/gravar el agente final.
+> analizar el entorno y evaluar/grabar el agente final.
+
+## Resultados
+
+Agente **DQN** (`CnnPolicy`) entrenado durante **2 000 000 de pasos**. Evaluación
+con política greedy (ε = 0), episodio completo de 3 vidas y puntaje real (sin
+*reward clipping*), sobre 5 episodios:
+
+| Métrica | Valor |
+|:--------|:------|
+| **Puntaje máximo (métrica de competencia)** | **1115** |
+| Puntaje promedio | 727 |
+| Baseline aleatorio (referencia) | ~150 |
+
+El video del agente jugando está en `videos/agente_dqn_final.mp4`.
 
 ## Estructura
 
@@ -41,17 +55,39 @@ Requiere `ffmpeg` en el sistema para escribir los videos `.mp4`.
 
 ### Entrenamiento (Google Colab)
 
-Ver la sección de entrenamiento dentro de `notebook/proyecto2.ipynb`: monta Google
-Drive, instala dependencias, entrena el DQN con GPU y guarda checkpoints en Drive
-para poder reanudar si la sesión se corta.
+Abrir `notebook/proyecto2.ipynb` en Colab, activar **GPU (T4)** y correr la
+sección 2: monta Google Drive, instala dependencias, entrena el DQN con GPU y
+guarda checkpoints cada 100 k pasos en `MyDrive/Proyecto2_SpaceInvaders/`. Si la
+sesión se corta, al re-ejecutar la celda 2.10 el entrenamiento **reanuda solo**
+desde el último checkpoint.
 
-## Cargar los pesos del modelo final
+## Cargar los pesos y evaluar el agente
 
 ```python
+import gymnasium as gym, ale_py
+gym.register_envs(ale_py)
 from stable_baselines3 import DQN
+from stable_baselines3.common.env_util import make_atari_env
+from stable_baselines3.common.vec_env import VecFrameStack
+
+# 1) Cargar el modelo entrenado
 modelo = DQN.load("models/dqn_spaceinvaders.zip")
+
+# 2) Entorno de evaluación con el MISMO preprocesamiento (puntaje real, 3 vidas)
+env = make_atari_env("ALE/SpaceInvaders-v5", n_envs=1,
+                     wrapper_kwargs=dict(clip_reward=False, terminal_on_life_loss=False))
+env = VecFrameStack(env, n_stack=4)
+
+# 3) Jugar un episodio greedy
+obs = env.reset(); done = [False]; total = 0.0
+while not done[0]:
+    accion, _ = modelo.predict(obs, deterministic=True)
+    obs, r, done, _ = env.step(accion); total += float(r[0])
+print("Puntaje:", total)
 ```
 
 El preprocesamiento del entorno de evaluación debe ser **idéntico** al de
-entrenamiento (mismos wrappers, tamaño de frame y apilado de frames); el notebook
-lo construye con la función `crear_entorno_atari`.
+entrenamiento (gris 84×84, apilado de 4 frames); solo se desactivan el *reward
+clipping* y el *episodic-life* para medir el puntaje real de la competencia. El
+notebook automatiza esto en la sección 4 (`crear_entorno_eval`), que también
+genera el video.
