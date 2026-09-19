@@ -1,71 +1,97 @@
-# Proyecto 2 — Deep Q-Learning en Space Invaders
+# Deep Q-Learning · Space Invaders (Atari)
 
-**CC3092 · Deep Learning y Sistemas Inteligentes** — Universidad del Valle de Guatemala
-**Nicolás Concuá**
+Agente de **aprendizaje por refuerzo profundo** que aprende a jugar *Space Invaders*
+directamente desde los píxeles de la pantalla, entrenado con **DQN (Deep Q-Network)**.
+Partiendo de una recompensa dispersa y sin conocimiento previo del juego, el agente
+desarrolla una política capaz de **superar los 1800 puntos**, muy por encima de una
+política aleatoria (~150).
 
-Entrenamiento de un agente de Aprendizaje por Refuerzo (DQN, con
-[Stable-Baselines3](https://stable-baselines3.readthedocs.io/)) capaz de jugar
-**Space Invaders** sobre el entorno `ALE/SpaceInvaders-v5` de Gymnasium. El
-proyecto documenta el proceso completo de desarrollo: análisis del entorno,
-metodología, iteraciones de entrenamiento, evaluación y video del agente.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-MPS-EE4C2C?logo=pytorch&logoColor=white)
+![Stable--Baselines3](https://img.shields.io/badge/Stable--Baselines3-2.9-1f4e79)
+![Gymnasium](https://img.shields.io/badge/Gymnasium-ALE-0A7E8C)
 
-> El entrenamiento se realiza en **Google Colab (GPU)** con checkpoints
-> periódicos a Google Drive como respaldo. El código local sirve para prototipar,
-> analizar el entorno y evaluar/grabar el agente final.
+---
+
+## Resumen
+
+- **Problema:** aprender a jugar `ALE/SpaceInvaders-v5` (Atari 2600) desde imágenes,
+  con recompensa dispersa y estocasticidad (*sticky actions*).
+- **Enfoque:** DQN con una CNN (*NatureCNN*) sobre observaciones preprocesadas
+  (escala de grises 84×84, apilado de 4 frames), *replay buffer*, red objetivo,
+  exploración ε-greedy y *reward clipping*.
+- **Resultado:** política final con **1815 de puntaje máximo** y **1022 de
+  promedio** en evaluación greedy (20 episodios).
+- **Ingeniería:** entrenamiento de 8 M de pasos en GPU (Apple MPS) con *checkpoints*
+  reanudables, ejecución de experimentos **en paralelo** para comparar
+  configuraciones, y un flujo reproducible de análisis → entrenamiento → evaluación
+  → video.
 
 ## Resultados
 
-Agente **DQN** (`CnnPolicy`) entrenado durante **8 000 000 de pasos** (localmente
-en un MacBook Pro M4 Pro con MPS). Evaluación con política greedy (ε = 0), episodio
-completo de 3 vidas y puntaje real (sin *reward clipping*), sobre 20 episodios:
-
 | Métrica | Valor |
 |:--------|:------|
-| **Puntaje máximo (métrica de competencia)** | **1815** |
+| **Puntaje máximo (greedy, 20 episodios)** | **1815** |
 | Puntaje promedio | 1022 |
-| Modelo inicial (2 M pasos, Colab) | 1255 / 625 |
-| Baseline aleatorio (referencia) | ~150 |
+| Mejor partida grabada | 1880 |
+| Baseline aleatorio | ~150 |
 
-Se compararon tres iteraciones (2 M base, 8 M base y 8 M con LR 2.5e-4); la de
-**8 M con LR base** fue la mejor. Videos del agente jugando:
-`videos/agente_dqn_final.mp4` (partida completa) y `videos/agente_dqn_1880.mp4`
-(clip de la mejor partida, 1880 puntos).
+<p align="center">
+  <img src="reports/curva_puntaje_8M.png" width="70%" alt="Puntaje vs. pasos de entrenamiento"/>
+</p>
 
-## Estructura
+Videos del agente jugando: `videos/agente_dqn_final.mp4` (partida completa) y
+`videos/agente_dqn_1880.mp4` (mejor partida).
+
+## Enfoque técnico
+
+**Preprocesamiento.** La observación RGB de 210×160×3 se convierte a gris, se
+redimensiona a 84×84 y se apilan 4 frames consecutivos para capturar movimiento.
+La recompensa se recorta a su signo para estabilizar el aprendizaje de los valores Q.
+
+**Arquitectura (NatureCNN).** Tres capas convolucionales (32×8×8/4, 64×4×4/2,
+64×3×3/1) + capa densa de 512 unidades + salida lineal de 6 valores Q, uno por
+acción.
+
+**Entrenamiento.** DQN con Adam, pérdida Huber, γ = 0.99, *replay buffer*, red
+objetivo actualizada cada 1000 pasos y ε decreciente de 1.0 a 0.01. Evaluación con
+política greedy (ε = 0) sobre el episodio completo de 3 vidas y puntaje real.
+
+**Experimentos.** Se compararon tres iteraciones; la de mayor cómputo con la tasa
+de aprendizaje base fue la ganadora:
+
+| Iteración | Configuración | Pasos | Puntaje (prom / máx) |
+|:----------|:--------------|:------|:---------------------|
+| It.1 | DQN base (LR 1e-4) | 2 M | 625 / 1255 |
+| **It.2 (final)** | DQN base (LR 1e-4) | 8 M | **1022 / 1815** |
+| It.3 | DQN (LR 2.5e-4) | 8 M | 648 / 1175 |
+
+Aprendizaje principal: **más pasos de entrenamiento** fue la mejora más efectiva,
+mientras que subir la tasa de aprendizaje perjudicó el desempeño.
+
+## Estructura del repositorio
 
 ```
-Deep_Q_Learning/
 ├── notebook/
-│   ├── proyecto2.ipynb   # investigación + entrenamiento (Colab) + evaluación + video
-│   └── ale_utils.py      # utilidades reutilizadas del Lab5 + agente desde modelo
-├── models/               # pesos del modelo final (.zip de SB3)
-├── reports/              # figuras (.png) e informe (.docx/.pdf, no versionado)
-└── videos/               # .mp4 del agente jugando
+│   ├── proyecto2.ipynb   # análisis del entorno, entrenamiento, evaluación y video
+│   └── ale_utils.py      # utilidades del entorno (creación, ejecución, video)
+├── models/               # pesos del modelo final (Stable-Baselines3 .zip)
+├── reports/              # figuras de resultados e informe (PDF)
+└── videos/               # partidas del agente (.mp4)
 ```
 
-## Cómo reproducir
-
-### Local (análisis del entorno, evaluación y video)
+## Cómo empezar
 
 ```bash
 python3.12 -m venv venv
 source venv/bin/activate
-pip install "gymnasium[atari,other]" ale-py stable-baselines3 numpy matplotlib opencv-python
-cd notebook
-jupyter nbconvert --to notebook --execute --inplace proyecto2.ipynb
+pip install "gymnasium[atari]" ale-py stable-baselines3 numpy matplotlib opencv-python moviepy
 ```
 
-Requiere `ffmpeg` en el sistema para escribir los videos `.mp4`.
+Los ROMs de Atari vienen incluidos con `ale-py`. Para escribir videos `.mp4` se
+recomienda tener `ffmpeg` disponible.
 
-### Entrenamiento (Google Colab)
-
-Abrir `notebook/proyecto2.ipynb` en Colab, activar **GPU (T4)** y correr la
-sección 2: monta Google Drive, instala dependencias, entrena el DQN con GPU y
-guarda checkpoints cada 100 k pasos en `MyDrive/Proyecto2_SpaceInvaders/`. Si la
-sesión se corta, al re-ejecutar la celda 2.10 el entrenamiento **reanuda solo**
-desde el último checkpoint.
-
-## Cargar los pesos y evaluar el agente
+### Cargar el modelo y evaluar
 
 ```python
 import gymnasium as gym, ale_py
@@ -74,15 +100,13 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.vec_env import VecFrameStack
 
-# 1) Cargar el modelo entrenado
 modelo = DQN.load("models/dqn_spaceinvaders.zip")
 
-# 2) Entorno de evaluación con el MISMO preprocesamiento (puntaje real, 3 vidas)
+# Entorno de evaluación con el MISMO preprocesamiento (puntaje real, 3 vidas)
 env = make_atari_env("ALE/SpaceInvaders-v5", n_envs=1,
                      wrapper_kwargs=dict(clip_reward=False, terminal_on_life_loss=False))
 env = VecFrameStack(env, n_stack=4)
 
-# 3) Jugar un episodio greedy
 obs = env.reset(); done = [False]; total = 0.0
 while not done[0]:
     accion, _ = modelo.predict(obs, deterministic=True)
@@ -90,8 +114,23 @@ while not done[0]:
 print("Puntaje:", total)
 ```
 
-El preprocesamiento del entorno de evaluación debe ser **idéntico** al de
-entrenamiento (gris 84×84, apilado de 4 frames); solo se desactivan el *reward
-clipping* y el *episodic-life* para medir el puntaje real de la competencia. El
-notebook automatiza esto en la sección 4 (`crear_entorno_eval`), que también
-genera el video.
+> El preprocesamiento de evaluación es idéntico al de entrenamiento (gris 84×84,
+> apilado de 4 frames); solo se desactivan el *reward clipping* y el *episodic-life*
+> para medir el puntaje real del juego. El notebook automatiza análisis,
+> entrenamiento, evaluación y generación de video.
+
+## Stack
+
+Python · PyTorch (Apple MPS) · Stable-Baselines3 · Gymnasium + ALE · NumPy ·
+OpenCV · Matplotlib
+
+## Contexto
+
+Proyecto desarrollado para el curso **CC3092 — Deep Learning y Sistemas
+Inteligentes** de la **Universidad del Valle de Guatemala**. Más allá del entregable
+académico, sirve como caso práctico de extremo a extremo de aprendizaje por refuerzo
+profundo aplicado a un entorno de Atari.
+
+## Autor
+
+**Nicolás Concuá**
