@@ -15,17 +15,21 @@ metodología, iteraciones de entrenamiento, evaluación y video del agente.
 
 ## Resultados
 
-Agente **DQN** (`CnnPolicy`) entrenado durante **2 000 000 de pasos**. Evaluación
-con política greedy (ε = 0), episodio completo de 3 vidas y puntaje real (sin
-*reward clipping*), sobre 5 episodios:
+Agente **DQN** (`CnnPolicy`) entrenado durante **8 000 000 de pasos** (localmente
+en un MacBook Pro M4 Pro con MPS). Evaluación con política greedy (ε = 0), episodio
+completo de 3 vidas y puntaje real (sin *reward clipping*), sobre 20 episodios:
 
 | Métrica | Valor |
 |:--------|:------|
-| **Puntaje máximo (métrica de competencia)** | **1115** |
-| Puntaje promedio | 727 |
+| **Puntaje máximo (métrica de competencia)** | **1815** |
+| Puntaje promedio | 1022 |
+| Modelo inicial (2 M pasos, Colab) | 1255 / 625 |
 | Baseline aleatorio (referencia) | ~150 |
 
-El video del agente jugando está en `videos/agente_dqn_final.mp4`.
+Se compararon tres iteraciones (2 M base, 8 M base y 8 M con LR 2.5e-4); la de
+**8 M con LR base** fue la mejor. Videos del agente jugando:
+`videos/agente_dqn_final.mp4` (partida completa) y `videos/agente_dqn_1880.mp4`
+(clip de la mejor partida, 1880 puntos).
 
 ## Estructura
 
