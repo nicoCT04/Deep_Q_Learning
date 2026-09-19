@@ -11,10 +11,11 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Informe (lo sube Nicolás manualmente, ver reglas del curso)
+# Informe: el .docx NO se versiona; el PDF final del informe sí.
 reports/*.docx
 reports/*.pdf
 !Proyecto 2 Deep Q Learning-1.pdf
+!reports/Informe_Proyecto2.pdf
 
 # Artefactos pesados de entrenamiento (viven en Google Drive, no en git)
 *.pkl
